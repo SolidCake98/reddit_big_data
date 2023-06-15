@@ -1,0 +1,3 @@
+nltk
+hugging_face
+pytorch
