@@ -1,0 +1,6 @@
+praw>=3.7
+psaw
+apache-airflow>=2.4.0
+cassandra-driver>=3.13.0
+apache-airflow-providers-apache-cassandra
+apache-airflow-providers-docker
