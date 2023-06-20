@@ -1,4 +1,5 @@
 from airflow.decorators import dag, task, task_group
+from cassandra.query import UNSET_VALUE
 from airflow.models import Variable
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 
@@ -74,55 +75,61 @@ def reddit_programming_summary():
             author_name = submission.author.name if submission.author else None
             submission_json: dict[str, Union[float, Optional[str]]] = {
                 "id": submission.id,
+                "num_comments": submission.num_comments,
                 "name": submission.name,
                 "author": author_name,
                 "title": submission.title,
                 "selftext": submission.selftext,
                 "subreddit": submission.subreddit.display_name,
-                "upvotes": submission.score,
-                "downvotes": int(submission.score / submission.upvote_ratio) - submission.score,
+                "score": submission.score,
                 "over_18": submission.over_18,
                 "timestamp": submission.created_utc,
                 "url": submission.url,
             }
             
             query = f"SELECT * FROM {hook.keyspace}.posts WHERE id='{submission_json['id']}' ALLOW FILTERING;"
-            result = c_con.execute(query)
-            exists = result.one() is not None
+            # result = c_con.execute(query)
+            # exists = result.one() is not None
+
+            exists = None
+
             
             if not exists:
                 logger.info(submission_json)
                 n_posts += 1
                 time_stamp = datetime.fromtimestamp(submission_json["timestamp"]) if isinstance(submission_json["timestamp"], float) else None
-                c_con.execute(
+                ps = c_con.prepare( 
                     """
                     INSERT INTO reddit.posts (
                         uuid,
+                        num_comments,
                         id,
                         name,
                         author,
                         title,
                         selftext,
                         subreddit,
-                        upvotes,
+                        score,
                         over_18,
-                        downvotes,
                         url,
                         api_timestamp
                     )
-                    VALUES (%s,%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """
+                )
+                c_con.execute(
+                    ps, (
                         uuid.uuid1(),
+                        submission_json["num_comments"],
                         submission_json["id"],
-                        submission_json["name"],
-                        submission_json["author"],
-                        submission_json["title"],
-                        submission_json["selftext"],
+                        submission_json["name"] if submission_json["name"] is not None else UNSET_VALUE,
+                        submission_json["author"] if submission_json["author"] is not None else UNSET_VALUE,
+                        submission_json["title"] if submission_json["title"] is not None else UNSET_VALUE,
+                        submission_json["selftext"] if submission_json["selftext"] is not None else UNSET_VALUE,
                         submission_json["subreddit"],
-                        submission_json["upvotes"],
+                        submission_json["score"],
                         submission_json["over_18"],
-                        submission_json["downvotes"],
-                        submission_json["url"],
+                        submission_json["url"] if submission_json["url"] is not None else UNSET_VALUE,
                         time_stamp,
                     )
                 )
@@ -144,7 +151,7 @@ def reddit_programming_summary():
         
         for comment in client.subreddit(sub).comments(limit=10000):    
             author_name = comment.author.name if comment.author else None
-            comment_json: dict[str, Optional[str]] = {
+            comment_json: Dict[str, Union[Optional[str], int]] = {
                 "id": comment.id,
                 "name": comment.name,
                 "author": author_name,
@@ -159,14 +166,17 @@ def reddit_programming_summary():
             }
             
             query = f"SELECT * FROM {hook.keyspace}.comments WHERE id='{comment_json['id']}' ALLOW FILTERING;"
-            result = c_con.execute(query)
-            exists = result.one() is not None
+            # result = c_con.execute(query)
+            # exists = result.one() is not None
+
+            exists = None
             
             if not exists:
                 n_comments += 1
                 logger.info(comment_json)
                 time_stamp = datetime.fromtimestamp(comment_json["timestamp"]) if isinstance(comment_json["timestamp"], float) else None
-                c_con.execute(
+
+                ps = c_con.prepare( 
                     """
                     INSERT INTO reddit.comments (
                         uuid,
@@ -182,19 +192,23 @@ def reddit_programming_summary():
                         submission_id,
                         api_timestamp
                     )
-                    VALUES (%s,%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """
+                )
+
+                c_con.execute(
+                    ps, (
                         uuid.uuid1(),
                         comment_json["id"],
-                        comment_json["name"],
-                        comment_json["author"],
-                        comment_json["body"],
+                        comment_json["name"] if comment_json["name"] is not None else UNSET_VALUE,
+                        comment_json["author"] if comment_json["author"] is not None else UNSET_VALUE,
+                        comment_json["body"] if comment_json["body"] is not None else UNSET_VALUE,
                         comment_json["subreddit"],
                         comment_json["upvotes"],
                         comment_json["downvotes"],
                         comment_json["over_18"],
-                        comment_json["permalink"],
-                        comment_json["submission"],
+                        comment_json["permalink"] if comment_json["permalink"] is not None else UNSET_VALUE,
+                        comment_json["submission"] if comment_json["submission"] is not None else UNSET_VALUE,
                         time_stamp,
                     )
                 )
@@ -205,6 +219,5 @@ def reddit_programming_summary():
     get_posts.expand(r_conf=[r_conf], sub=subreddits)
     get_comments.expand(r_conf=[r_conf], sub=subreddits)
     
-
 
 summary = reddit_programming_summary()
