@@ -119,7 +119,7 @@
             "target": "select subreddit, CAST(sentiment_score_avg AS double), ingest_timestamp from reddit.posts_sentiment_score_avg where ingest_timestamp>$__timeFrom and ingest_timestamp<$__timeTo ALLOW FILTERING;"
           }
         ],
-        "title": "Top subreddits",
+        "title": "Posts",
         "type": "timeseries"
       },
       {
@@ -209,10 +209,10 @@
             "queryType": "query",
             "rawQuery": true,
             "refId": "A",
-            "target": "select subreddit, CAST(sentiment_score_avg AS double), ingest_timestamp from reddit.subreddit_sentiment_avg where subreddit IN ('india', 'usa', 'unitedkingdom', 'australia', 'russia', 'China') and ingest_timestamp>$__timeFrom and ingest_timestamp<$__timeTo;"
+            "target": "select subreddit, CAST(sentiment_score_avg AS double), ingest_timestamp from reddit.comments_sentiment_score_avg where ingest_timestamp>$__timeFrom and ingest_timestamp<$__timeTo ALLOW FILTERING;"
           }
         ],
-        "title": "Countries",
+        "title": "Comments",
         "type": "timeseries"
       }
     ],

@@ -175,8 +175,8 @@ def reddit_sen_analysis():
             .getOrCreate()
         
         
-        minutes = lambda i: i * 60
-        w = (W.Window.partitionBy("subreddit").orderBy(F.col("api_timestamp").cast('long')).rangeBetween(-minutes(10), 0))
+        hours = lambda i: i * 60 * 60
+        w = (W.Window.partitionBy("subreddit").orderBy(F.col("api_timestamp").cast('long')).rangeBetween(-hours(5), 0))
 
         df_posts_scores = spark.read. \
             format("org.apache.spark.sql.cassandra"). \
@@ -214,8 +214,8 @@ def reddit_sen_analysis():
             .getOrCreate()
         
         
-        minutes = lambda i: i * 60
-        w = (W.Window.partitionBy("subreddit").orderBy(F.col("api_timestamp").cast('long')).rangeBetween(-minutes(10), 0))
+        hours = lambda i: i * 60 * 60
+        w = (W.Window.partitionBy("subreddit").orderBy(F.col("api_timestamp").cast('long')).rangeBetween(-hours(5), 0))
 
         df_comments_scores = spark.read. \
             format("org.apache.spark.sql.cassandra"). \
